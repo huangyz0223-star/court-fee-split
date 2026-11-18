@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="输入球费、场地费和人数，计算男生、女生各自的人均费用。">
+  <meta name="theme-color" content="#edf3ee">
+  <title>球费分摊</title>
+  <style>
+    :root {
+      color-scheme: light;
+      font-family: Inter, "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+      color: #16332a;
+      background: #edf3ee;
+      font-synthesis: none;
+    }
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; }
+    main { width: min(100% - 32px, 960px); margin: clamp(30px, 7vw, 82px) auto; }
+    h1 { margin: 0 0 22px; font-size: clamp(31px, 6vw, 52px); line-height: 1.14; }
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1.04fr);
+      align-items: start;
+      gap: 16px;
+    }
+    form, .results { padding: clamp(15px, 3.2vw, 27px); border-radius: 20px; }
+    form {
+      background: #fff;
+      border: 1px solid #d7e4da;
+      box-shadow: 0 12px 28px #16332a08;
+    }
+    .fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px 12px; }
+    .wide { grid-column: 1 / -1; }
+    label {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 2px 5px;
+      margin-bottom: 6px;
+      font-size: 14px;
+      font-weight: 650;
+    }
+    .unit { color: #52695e; font-size: 12px; font-weight: 500; }
+    input {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      min-height: 46px;
+      padding: 9px 10px;
+      border: 1px solid #b9cbbd;
+      border-radius: 8px;
+      background: #f7faf7;
+      color: #16332a;
+      font: inherit;
+      font-size: 16px;
+    }
+    input::placeholder { color: #5d7168; opacity: 1; }
+    input[aria-invalid="true"] { border-color: #a32121; }
+    input:focus-visible, button:focus-visible, summary:focus-visible {
+      outline: 2px solid #247959;
+      outline-offset: 2px;
+    }
+    button {
+      width: 100%;
+      min-height: 48px;
+      margin-top: 19px;
+      border: 0;
+      border-radius: 9px;
+      background: #146044;
+      color: #fff;
+      font: inherit;
+      font-weight: 750;
+      cursor: pointer;
+    }
+    button:hover { background: #0c4b34; }
+    .error { margin: 12px 0 0; color: #9c2424; font-size: 14px; line-height: 1.5; }
+    .error:empty { display: none; }
+    .results { background: #143d30; color: #f3fbf5; }
+    .results h2 { margin: 0 0 16px; font-size: clamp(21px, 4vw, 27px); }
+    .results .unit { margin-left: 7px; color: #c0ddcb; }
+    table { width: 100%; table-layout: fixed; border-collapse: collapse; text-align: right; }
+    thead th {
+      padding: 9px 4px;
+      border-bottom: 1px solid #6c9582;
+      color: #cce5d5;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    tr > :first-child { width: 17%; padding-left: 0; text-align: left; }
+    tbody th, tbody td {
+      padding: 15px 4px;
+      border-bottom: 1px solid #527b67;
+      overflow-wrap: anywhere;
+    }
+    tbody th { font-size: 15px; }
+    td { font-size: clamp(16px, 3.9vw, 24px); font-variant-numeric: tabular-nums; }
+    td:last-child { color: #baf4c3; font-weight: 780; }
+    .notes { margin-top: 14px; color: #e2f1e6; font-size: 13px; line-height: 1.65; }
+    .notes:empty { display: none; }
+    .notes p { margin: 4px 0 0; }
+    details { margin-top: 16px; padding: 1px 2px; color: #394f44; font-size: 14px; }
+    summary { width: fit-content; min-height: 38px; padding: 7px 0; cursor: pointer; font-weight: 650; }
+    details p { margin: 0 0 6px; line-height: 1.6; }
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+    @media (max-width: 700px) {
+      .layout { grid-template-columns: minmax(0, 1fr); gap: 12px; }
+      h1 { margin-bottom: 16px; }
+      .results h2 { margin-bottom: 7px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>球费分摊</h1>
+    <div class="layout">
+      <form id="calculator" novalidate>
+        <div class="fields">
+          <div>
+            <label for="ball">球费 <span class="unit">元</span></label>
+            <input id="ball" maxlength="256" placeholder="如 120/12*10" autocomplete="off" spellcheck="false" aria-describedby="form-error">
+          </div>
+          <div>
+            <label for="court">场地费 <span class="unit">元</span></label>
+            <input id="court" maxlength="256" placeholder="如 (40+20)/3" autocomplete="off" spellcheck="false" aria-describedby="form-error">
+          </div>
+          <div>
+            <label for="men">男生人数 <span class="unit">人</span></label>
+            <input id="men" inputmode="numeric" maxlength="30" autocomplete="off" aria-describedby="form-error">
+          </div>
+          <div>
+            <label for="women">女生人数 <span class="unit">人</span></label>
+            <input id="women" inputmode="numeric" maxlength="30" autocomplete="off" aria-describedby="form-error">
+          </div>
+          <div class="wide">
+            <label for="discount">女生比男生少付 <span class="unit">元 / 人</span></label>
+            <input id="discount" inputmode="decimal" maxlength="30" value="0" autocomplete="off" aria-describedby="form-error">
+          </div>
+        </div>
+        <button type="submit">计算费用</button>
+        <p class="error" id="form-error" role="alert"></p>
+      </form>
+
+      <section class="results" aria-labelledby="results-title">
+        <h2 id="results-title">人均费用 <span class="unit">元 / 人</span></h2>
+        <table>
+          <thead>
+            <tr><th scope="col"><span class="visually-hidden">人员</span></th><th scope="col">场地费</th><th scope="col">球费</th><th scope="col">总费用</th></tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">男生</th><td>—</td><td>—</td><td>—</td></tr>
+            <tr><th scope="row">女生</th><td>—</td><td>—</td><td>—</td></tr>
+          </tbody>
+        </table>
+        <div class="notes" id="notes"></div>
+        <div class="visually-hidden" id="result-announcement" role="status"></div>
+      </section>
+    </div>
+    <details>
+      <summary>分摊与取整规则</summary>
+      <p>场地费按人数平摊，女生优惠计入球费。球费和场地费支持加减乘除及括号。</p>
+      <p>只有一项有小数时，该项向上取整。两项都是整数时直接相加。</p>
+      <p>两项都有小数时，小数之和大于 1 就两项都向上取整。小数之和不超过 1 时，场地费向上取整，球费向下取整。总费用为两项取整后相加。</p>
+    </details>
+  </main>
+
+  <script id="calculator-core">
+    class Fraction {
+      constructor(numerator, denominator = 1n) {
+        if (denominator === 0n) throw new Error("算式中不能除以 0。");
+        if (denominator < 0n) {
+          numerator = -numerator;
+          denominator = -denominator;
+        }
+
+        let a = numerator < 0n ? -numerator : numerator;
+        let b = denominator;
+        while (b !== 0n) {
+          const remainder = a % b;
+          a = b;
+          b = remainder;
+        }
+        this.numerator = numerator / a;
+        this.denominator = denominator / a;
+      }
+
+      static decimal(text) {
+        const [whole, decimal = ""] = text.split(".");
+        return new Fraction(BigInt((whole || "0") + decimal), 10n ** BigInt(decimal.length));
+      }
+
+      add(other) {
+        return new Fraction(
+          this.numerator * other.denominator + other.numerator * this.denominator,
+          this.denominator * other.denominator
+        );
+      }
+
+      subtract(other) { return this.add(other.negate()); }
+      negate() { return new Fraction(-this.numerator, this.denominator); }
+
+      multiply(other) {
+        return new Fraction(this.numerator * other.numerator, this.denominator * other.denominator);
+      }
+
+      divide(other) {
+        return new Fraction(this.numerator * other.denominator, this.denominator * other.numerator);
+      }
+
+      floor() {
+        const quotient = this.numerator / this.denominator;
+        return this.numerator < 0n && this.numerator % this.denominator !== 0n ? quotient - 1n : quotient;
+      }
+
+      ceil() { return -this.negate().floor(); }
+    }
+
+    function parseCost(raw) {
+      const expression = raw.normalize("NFKC").replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-").trim();
+      const message = "请输入数字或由加、减、乘、除和括号组成的算式。";
+      if (expression.length > 256) throw new Error("算式最多支持 256 个字符。");
+      if (!/^[0-9.+*\/() \t-]+$/.test(expression)) throw new Error(message);
+      const tokens = expression.match(/[0-9]+(?:\.[0-9]*)?|\.[0-9]+|[.+*\/()-]/g);
+      let index = 0;
+
+      function readFactor() {
+        const token = tokens[index++];
+        if (token === "+") return readFactor();
+        if (token === "-") return readFactor().negate();
+        if (token === "(") {
+          const value = readSum();
+          if (tokens[index++] !== ")") throw new Error(message);
+          return value;
+        }
+        if (token && /^(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$/.test(token)) {
+          return Fraction.decimal(token);
+        }
+        throw new Error(message);
+      }
+
+      function readProduct() {
+        let value = readFactor();
+        while (tokens[index] === "*" || tokens[index] === "/") {
+          const operation = tokens[index++];
+          const right = readFactor();
+          value = operation === "*" ? value.multiply(right) : value.divide(right);
+        }
+        return value;
+      }
+
+      function readSum() {
+        let value = readProduct();
+        while (tokens[index] === "+" || tokens[index] === "-") {
+          const operation = tokens[index++];
+          const right = readProduct();
+          value = operation === "+" ? value.add(right) : value.subtract(right);
+        }
+        return value;
+      }
+
+      const result = readSum();
+      if (index !== tokens.length) throw new Error(message);
+      if (result.numerator < 0n) throw new Error("费用不能为负数。");
+      return result;
+    }
+
+    function parsePeople(raw) {
+      const value = raw.normalize("NFKC").trim();
+      if (!/^[0-9]+$/.test(value)) throw new Error("请输入非负整数。");
+      return BigInt(value);
+    }
+
+    function parseDiscount(raw) {
+      const value = raw.normalize("NFKC").trim();
+      if (!/^(?:[0-9]+(?:\.[0-9]{0,2})?|\.[0-9]{1,2})$/.test(value)) {
+        throw new Error("请输入非负金额，最多保留两位小数。");
+      }
+      return Fraction.decimal(value);
+    }
+
+    function calculate(ballFee, courtFee, men, women, discount) {
+      const count = men + women;
+      if (count === 0n) throw new Error("总人数至少为 1 人。");
+      const appliedDiscount = men && women ? discount : new Fraction(0n);
+
+      const participants = new Fraction(count);
+      const courtShare = courtFee.divide(participants);
+      const womenBall = ballFee.subtract(appliedDiscount.multiply(new Fraction(men))).divide(participants);
+      if (womenBall.numerator < 0n) {
+        throw new Error("优惠金额过大，按此差额分摊会使女生球费为负。");
+      }
+      const menBall = womenBall.add(appliedDiscount);
+
+      const courtYuan = courtShare.ceil();
+      const courtFraction = courtShare.subtract(new Fraction(courtShare.floor()));
+      function roundGroup(people, ballShare) {
+        if (people === 0n) return null;
+        const ballFloor = ballShare.floor();
+        const ballFraction = ballShare.subtract(new Fraction(ballFloor));
+        const fractionalTotal = courtFraction.add(ballFraction);
+        const roundBallDown = courtFraction.numerator !== 0n && ballFraction.numerator !== 0n
+          && fractionalTotal.numerator <= fractionalTotal.denominator;
+        const ballYuan = roundBallDown ? ballFloor : ballShare.ceil();
+        return [courtYuan, ballYuan, courtYuan + ballYuan];
+      }
+
+      const fees = [roundGroup(men, menBall), roundGroup(women, womenBall)];
+      const courtDifference = new Fraction(courtYuan * count).subtract(courtFee);
+      const collectedBall = (fees[0]?.[1] ?? 0n) * men + (fees[1]?.[1] ?? 0n) * women;
+      const ballDifference = new Fraction(collectedBall).subtract(ballFee);
+      const differences = [courtDifference, ballDifference, courtDifference.add(ballDifference)];
+      const actualDiscount = men && women ? new Fraction(fees[0][2] - fees[1][2]) : null;
+      return { fees, differences, actualDiscount };
+    }
+
+    const integerFormat = new Intl.NumberFormat("zh-CN");
+
+    function formatYuan(amount) {
+      const cents = amount.multiply(new Fraction(100n));
+      if (cents.numerator > 0n && cents.numerator < cents.denominator) return "不足 0.01 元";
+      const rounded = cents.add(new Fraction(1n, 2n)).floor();
+      const fraction = rounded % 100n;
+      const digits = integerFormat.format(rounded / 100n);
+      const decimal = fraction ? "." + String(fraction).padStart(2, "0") : "";
+      const approximate = cents.denominator === 1n ? "" : "约 ";
+      return approximate + digits + decimal + " 元";
+    }
+  </script>
+
+  <script>
+    const form = document.getElementById("calculator");
+    const errorLine = document.getElementById("form-error");
+    const notes = document.getElementById("notes");
+    const announcement = document.getElementById("result-announcement");
+    const fields = [
+      ["ball", "球费", parseCost], ["court", "场地费", parseCost],
+      ["men", "男生人数", parsePeople], ["women", "女生人数", parsePeople],
+      ["discount", "女生比男生少付", parseDiscount]
+    ];
+    const rows = Array.from(document.querySelectorAll("tbody tr"), row => Array.from(row.querySelectorAll("td")));
+
+    function renderFees(fees) {
+      rows.forEach((cells, row) => {
+        cells.forEach((cell, column) => {
+          cell.textContent = fees[row] ? integerFormat.format(fees[row][column]) : "—";
+        });
+      });
+    }
+
+    function addNote(text) {
+      const line = document.createElement("p");
+      line.textContent = text;
+      notes.append(line);
+    }
+
+    form.addEventListener("input", () => {
+      form.querySelector("[aria-invalid]")?.removeAttribute("aria-invalid");
+      errorLine.textContent = "";
+      announcement.textContent = "";
+      notes.replaceChildren();
+      renderFees([null, null]);
+    });
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const values = [];
+      for (const [id, label, parse] of fields) {
+        const input = document.getElementById(id);
+        try {
+          values.push(parse(input.value));
+        } catch (error) {
+          errorLine.textContent = label + "：" + error.message;
+          input.setAttribute("aria-invalid", "true");
+          input.focus();
+          return;
+        }
+      }
+
+      let result;
+      try {
+        result = calculate(...values);
+      } catch (error) {
+        errorLine.textContent = error.message;
+        return;
+      }
+
+      errorLine.textContent = "";
+      renderFees(result.fees);
+      notes.replaceChildren();
+      const labels = ["场地费", "球费", "合计"];
+      const differences = [];
+      result.differences.forEach((difference, index) => {
+        if (difference.numerator > 0n) differences.push(labels[index] + "多收 " + formatYuan(difference));
+        if (difference.numerator < 0n) differences.push(labels[index] + "少收 " + formatYuan(difference.negate()));
+      });
+      if (differences.length) addNote("取整尾差　" + differences.join("，") + "。");
+      if (result.actualDiscount && result.actualDiscount.subtract(values[4]).numerator !== 0n) {
+        addNote("取整后女生每人少付 " + formatYuan(result.actualDiscount) + "。");
+      }
+      const groups = ["男生", "女生"];
+      announcement.textContent = result.fees.map((row, index) =>
+        row ? groups[index] + "每人 " + integerFormat.format(row[2]) + " 元。" : ""
+      ).join("");
+      if (window.matchMedia("(max-width: 700px)").matches) {
+        if (form.contains(document.activeElement) && document.activeElement.tagName === "INPUT") {
+          document.activeElement.blur();
+        }
+        document.querySelector(".results").scrollIntoView({ block: "nearest" });
+      }
+    });
+  </script>
+</body>
+</html>
